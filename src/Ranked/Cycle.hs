@@ -9,11 +9,13 @@ import System.Random (randomRIO)
 -- `Line` was moved to the bottom
 cycle :: [Line] -> IO (String, [Line])
 cycle ls = do
-  let weights = map (\(Line _ n) -> max 0 n) ls
-      total  = sum weights
-  if total <= 0 || null ls
+  if null ls
     then return ("", ls)
     else do
+      let raw = map (\(Line _ n) -> n) ls
+          shift = if minimum raw < 0 then -(minimum raw) + 1 else 0
+          weights = map (\n -> n + shift) raw
+          total  = sum weights
       pick <- randomRIO (0, total - 1)
       let idx = select weights pick
           (Line url _) = ls !! idx

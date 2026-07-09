@@ -115,6 +115,14 @@ testCycleDeterministicWithOneLine = TestCase $ do
   assertBool "always same URL" (all (\(u, _) -> u == "a.com") results)
   assertBool "always same list" (all (\(_, ls') -> ls' == ls) results)
 
+testCycleWithNegatives :: Test
+testCycleWithNegatives = TestCase $ do
+  let ls = [Line "a.com" (-5), Line "b.com" (-1), Line "c.com" (-3)]
+  (url, ls') <- cycle ls
+  assertBool "selected url is one of the input urls (all negative)"
+    (url `elem` map (\(Line u _) -> u) ls)
+  assertEqual "list length preserved (all negative)" (length ls) (length ls')
+
 testCycleEmpty :: Test
 testCycleEmpty = TestCase $ do
   (url, ls') <- cycle []
@@ -166,6 +174,7 @@ tests = TestList [ TestLabel "testParseSimple" testParseSimple
                  , TestLabel "testCycleSingle" testCycleSingle
                  , TestLabel "testCycleSelectedMovedToBottom" testCycleSelectedMovedToBottom
                  , TestLabel "testCycleDeterministicWithOneLine" testCycleDeterministicWithOneLine
+                 , TestLabel "testCycleWithNegatives" testCycleWithNegatives
                  , TestLabel "testCycleEmpty" testCycleEmpty
                  , TestLabel "testUp" testUp
                  , TestLabel "testUpEmpty" testUpEmpty
