@@ -3,57 +3,62 @@ set -euo pipefail
 
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
-TIMEOUT=5
 
 pass() { echo "PASS: $1"; }
 fail() { echo "FAIL: $1"; exit 1; }
 
-# --- test 1: default is in-place edit (file gets modified) ---
+# --- test 1: default in-place cycles and opens browser (hard to test fully),
+#             instead use -u to verify the up/write path works ---
 cat > "$tmpdir/in1.txt" <<-EOF
 	a.com,1
 	b.com,-2
 	c.com,0
 EOF
 
-timeout $TIMEOUT cabal run ranked -- "$tmpdir/in1.txt" 2>/dev/null || true
+cabal run ranked -- -u "$tmpdir/in1.txt" 2>/dev/null
 
-actual_lines=$(grep -c . "$tmpdir/in1.txt" 2>/dev/null || true)
-[ "$actual_lines" = "3" ] \
-  && pass "in-place preserves line count" || fail "in-place line count: $actual_lines (expected 3)"
+last_counter=$(tail -1 "$tmpdir/in1.txt" | cut -d, -f2)
+[ "$last_counter" = "1" ] \
+  && pass "-u increments last counter" || fail "-u: expected last counter 1, got $last_counter"
 
-invalid=$(awk -F, 'NF < 2 || $2 !~ /^-?[0-9]+$/ {print}' "$tmpdir/in1.txt" 2>/dev/null || true)
-[ -z "$invalid" ] \
-  && pass "in-place output is valid url,number" || fail "invalid in-place output: $invalid"
-
-# --- test 2: -o writes to stdout, file unchanged ---
+# --- test 2: -u with -o writes to stdout, file unchanged ---
 cat > "$tmpdir/in2.txt" <<-EOF
 	a.com,1
 	b.com,-2
 	c.com,0
 EOF
 
-cat > "$tmpdir/in2_original.txt" <<-EOF
+cp "$tmpdir/in2.txt" "$tmpdir/in2_original.txt"
+
+cabal run ranked -- -u -o "$tmpdir/in2.txt" > "$tmpdir/actual.txt" 2>/dev/null
+
+actual_lines=$(grep -c . "$tmpdir/actual.txt" 2>/dev/null || true)
+[ "$actual_lines" = "3" ] \
+  && pass "-u -o has 3 output lines" || fail "-u -o output line count: $actual_lines"
+
+diff "$tmpdir/in2.txt" "$tmpdir/in2_original.txt" \
+  && pass "-o leaves file unchanged" || fail "-o modified the file"
+
+# --- test 3: -d decrements last counter ---
+cat > "$tmpdir/in3.txt" <<-EOF
 	a.com,1
 	b.com,-2
 	c.com,0
 EOF
 
-timeout $TIMEOUT cabal run ranked -- -o "$tmpdir/in2.txt" > "$tmpdir/actual.txt" 2>/dev/null || true
+cabal run ranked -- -d "$tmpdir/in3.txt" 2>/dev/null
 
-actual_lines2=$(grep -c . "$tmpdir/actual.txt" 2>/dev/null || true)
-[ "$actual_lines2" = "3" ] \
-  && pass "stdout output has 3 lines" || fail "stdout output line count: $actual_lines2 (expected 3)"
+actual_counter=$(tail -1 "$tmpdir/in3.txt" | cut -d, -f2)
+[ "$actual_counter" = "-1" ] \
+  && pass "-d decrements last counter" || fail "-d: expected last counter -1, got $actual_counter"
 
-diff "$tmpdir/in2.txt" "$tmpdir/in2_original.txt" \
-  && pass "-o leaves file unchanged" || fail "-o modified the file"
-
-# --- test 3: empty file ---
+# --- test 4: empty file ---
 cat /dev/null > "$tmpdir/empty.txt"
-timeout $TIMEOUT cabal run ranked -- "$tmpdir/empty.txt" 2>/dev/null || true
+cabal run ranked -- -u "$tmpdir/empty.txt" 2>/dev/null
 [ ! -s "$tmpdir/empty.txt" ] \
   && pass "empty file stays empty" || fail "empty file got content"
 
-# --- test 4: error input ---
+# --- test 5: error input ---
 cat > "$tmpdir/err.txt" <<-EOF
 	url,abc
 EOF
@@ -62,7 +67,7 @@ actual=$(cabal run ranked -- "$tmpdir/err.txt" 2>&1 || true)
 [[ "$actual" == Error:* ]] \
   && pass "error on bad input" || fail "error on bad input (got: $actual)"
 
-# --- test 5: no args ---
+# --- test 6: no args ---
 actual=$(cabal run ranked 2>&1 || true)
 [[ "$actual" == *"Usage: ranked"* ]] \
   && pass "usage message" || fail "usage message (got: $actual)"

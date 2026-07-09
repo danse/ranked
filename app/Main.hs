@@ -40,12 +40,13 @@ run (Opts dir toStdout file) = do
   let l err = putStrLn ("Error: " ++ err) >> exitFailure
       withPref p = if '.' `elem` p then "https://" <> p else p
       r ds = do
-        let adjusted = case dir of
-              Up   -> up ds
-              Down -> down ds
-              NoDir -> ds
-        (location, cycled) <- cycle adjusted
-        (if toStdout then putStr else writeFile file) (serializeFile cycled)
-        _ <- openBrowser (withPref location)
+        processed <- case dir of
+          Up   -> pure $ up ds
+          Down -> pure $ down ds
+          NoDir -> do
+            (location, cycled) <- cycle ds
+            _ <- openBrowser (withPref location)
+            pure cycled
+        (if toStdout then putStr else writeFile file) (serializeFile processed)
         exitSuccess
   either l r (parseFile content)
