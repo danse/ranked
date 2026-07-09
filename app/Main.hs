@@ -1,5 +1,6 @@
 module Main where
 
+import Data.List (isSubsequenceOf)
 import Prelude hiding (cycle)
 import Ranked (parseFile, serializeFile)
 import Ranked.Cycle (cycle, up, down)
@@ -38,7 +39,7 @@ run :: Opts -> IO ()
 run (Opts dir toStdout file) = do
   content <- readFile file
   let l err = putStrLn ("Error: " ++ err) >> exitFailure
-      withPref p = if '.' `elem` p then "https://" <> p else p
+      withPref p = if (isSubsequenceOf "https://" p) then p else "https://" <> p
       r ds = do
         processed <- case dir of
           Up   -> pure $ up ds
