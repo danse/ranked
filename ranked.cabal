@@ -94,7 +94,7 @@ test-suite ranked-test
 
     build-depends:    base ^>=4.19.2.0
                     , ranked
-                    , HUnit
+                    , hspec
 
     hs-source-dirs:   tests
 

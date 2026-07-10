@@ -1,191 +1,114 @@
 module Main where
 
+import Data.Either (isLeft)
 import Prelude hiding (cycle)
-import Test.HUnit
+import Test.Hspec
 import Ranked (Line(..), parseLine, parseFile, serializeLine, serializeFile)
 import Ranked.Cycle (cycle, up, down)
-import Data.Maybe (isNothing)
-import System.Exit (exitFailure, exitSuccess)
 
-testParseSimple :: Test
-testParseSimple = TestCase $
-  assertEqual "simple url with positive counter"
-    (Just (Line "example.com" 42))
-    (parseLine "example.com,42")
+spec :: Spec
+spec = do
+  describe "parseLine" $ do
+    specify "simple url with positive counter" $
+      parseLine "example.com,42" `shouldBe` Just (Line "example.com" 42)
 
-testParseNegative :: Test
-testParseNegative = TestCase $
-  assertEqual "negative counter"
-    (Just (Line "foo.com" (-3)))
-    (parseLine "foo.com,-3")
+    specify "negative counter" $
+      parseLine "foo.com,-3" `shouldBe` Just (Line "foo.com" (-3))
 
-testParseZero :: Test
-testParseZero = TestCase $
-  assertEqual "zero counter"
-    (Just (Line "zero.com" 0))
-    (parseLine "zero.com,0")
+    specify "zero counter" $
+      parseLine "zero.com,0" `shouldBe` Just (Line "zero.com" 0)
 
-testParseUrlWithCommas :: Test
-testParseUrlWithCommas = TestCase $
-  assertEqual "url with commas"
-    (Just (Line "example.com/path?q=a,b,c" 42))
-    (parseLine "example.com/path?q=a,b,c,42")
+    specify "url with commas" $
+      parseLine "example.com/path?q=a,b,c,42"
+        `shouldBe` Just (Line "example.com/path?q=a,b,c" 42)
 
-testParseInvalid :: Test
-testParseInvalid = TestCase $
-  assertBool "line with non-numeric after comma returns Nothing" (isNothing (parseLine "url,abc"))
+    specify "line with non-numeric after comma returns Nothing" $
+      parseLine "url,abc" `shouldBe` Nothing
 
-testParseFileMultipleLines :: Test
-testParseFileMultipleLines = TestCase $
-  assertEqual "two lines"
-    (Right [Line "a.com" 1, Line "b.com" 2])
-    (parseFile "a.com,1\nb.com,2")
+    specify "url without any comma defaults to counter 0" $
+      parseLine "example.com" `shouldBe` Just (Line "example.com" 0)
 
-testParseFileWithBlankLines :: Test
-testParseFileWithBlankLines = TestCase $
-  assertEqual "skips blank lines"
-    (Right [Line "a.com" 1, Line "b.com" 2])
-    (parseFile "a.com,1\n\nb.com,2\n  \n")
+  describe "parseFile" $ do
+    specify "two lines" $
+      parseFile "a.com,1\nb.com,2" `shouldBe` Right [Line "a.com" 1, Line "b.com" 2]
 
-testParseUrlNoComma :: Test
-testParseUrlNoComma = TestCase $
-  assertEqual "url without any comma defaults to counter 0"
-    (Just (Line "example.com" 0))
-    (parseLine "example.com")
+    specify "skips blank lines" $
+      parseFile "a.com,1\n\nb.com,2\n  \n"
+        `shouldBe` Right [Line "a.com" 1, Line "b.com" 2]
 
-testParseLineNoCommaInFile :: Test
-testParseLineNoCommaInFile = TestCase $
-  assertEqual "lines without commas get counter 0"
-    (Right [Line "a.com" 1, Line "b.com" 0])
-    (parseFile "a.com,1\nb.com")
+    specify "lines without commas get counter 0" $
+      parseFile "a.com,1\nb.com" `shouldBe` Right [Line "a.com" 1, Line "b.com" 0]
 
-testSerializeLine :: Test
-testSerializeLine = TestCase $
-  assertEqual "serialize positive counter" "example.com,42"
-    (serializeLine (Line "example.com" 42))
+    specify "returns Left on parse error" $
+      parseFile "a.com,1\nurl,abc\nb.com,2" `shouldSatisfy` isLeft
 
-testSerializeLineZero :: Test
-testSerializeLineZero = TestCase $
-  assertEqual "serialize zero counter" "example.com,0"
-    (serializeLine (Line "example.com" 0))
+  describe "serializeLine" $ do
+    specify "positive counter" $
+      serializeLine (Line "example.com" 42) `shouldBe` "example.com,42"
 
-testSerializeLineNegative :: Test
-testSerializeLineNegative = TestCase $
-  assertEqual "serialize negative counter" "example.com,-3"
-    (serializeLine (Line "example.com" (-3)))
+    specify "zero counter" $
+      serializeLine (Line "example.com" 0) `shouldBe` "example.com,0"
 
-testSerializeRoundtrip :: Test
-testSerializeRoundtrip = TestCase $ do
-  let l = Line "a.com,with,commas" 42
-  assertEqual "serialize then parse gives original" (Just l) (parseLine (serializeLine l))
+    specify "negative counter" $
+      serializeLine (Line "example.com" (-3)) `shouldBe` "example.com,-3"
 
-testSerializeFile :: Test
-testSerializeFile = TestCase $
-  assertEqual "serializeFile joins with newlines"
-    "a.com,1\nb.com,-2\nc.com,0\n"
-    (serializeFile [Line "a.com" 1, Line "b.com" (-2), Line "c.com" 0])
+  describe "serializeFile" $ do
+    specify "joins with newlines" $
+      serializeFile [Line "a.com" 1, Line "b.com" (-2), Line "c.com" 0]
+        `shouldBe` "a.com,1\nb.com,-2\nc.com,0\n"
 
-testCycleSingle :: Test
-testCycleSingle = TestCase $ do
-  let ls = [Line "a.com" 5]
-  (url, ls') <- cycle ls
-  assertEqual "single line returns its URL" "a.com" url
-  assertEqual "single line list unchanged" ls ls'
+  describe "roundtrip" $ do
+    specify "serialize then parse gives original" $
+      let l = Line "a.com,with,commas" 42
+      in parseLine (serializeLine l) `shouldBe` Just l
 
-testCycleSelectedMovedToBottom :: Test
-testCycleSelectedMovedToBottom = TestCase $ do
-  let ls = [Line "a.com" 5, Line "b.com" 3, Line "c.com" 1]
-  (url, ls') <- cycle ls
-  assertBool "selected url is one of the input urls"
-    (url `elem` map (\(Line u _) -> u) ls)
-  assertEqual "list length preserved" (length ls) (length ls')
-  -- the selected line should be at the bottom
-  assertBool "list not empty" (not (null ls'))
-  let lastUrl = let (Line u _) = last ls' in u
-  assertEqual "selected line moved to bottom" url lastUrl
-  -- the remaining lines should be in the same relative order
-  let initLines' = init ls'
-      expectedInit = filter (\(Line u _) -> u /= url) ls
-  assertEqual "other lines keep order" expectedInit initLines'
+  describe "cycle" $ do
+    specify "single line returns its URL" $ do
+      let ls = [Line "a.com" 5]
+      (url, ls') <- cycle ls
+      url `shouldBe` "a.com"
+      ls' `shouldBe` ls
 
-testCycleDeterministicWithOneLine :: Test
-testCycleDeterministicWithOneLine = TestCase $ do
-  let ls = [Line "a.com" 42]
-  results <- sequence (replicate 10 (cycle ls))
-  assertBool "always same URL" (all (\(u, _) -> u == "a.com") results)
-  assertBool "always same list" (all (\(_, ls') -> ls' == ls) results)
+    specify "selected line moved to bottom" $ do
+      let ls = [Line "a.com" 5, Line "b.com" 3, Line "c.com" 1]
+      (url, ls') <- cycle ls
+      url `shouldSatisfy` (`elem` map (\(Line u _) -> u) ls)
+      length ls' `shouldBe` length ls
+      not (null ls') `shouldBe` True
+      let Line lastUrl _ = last ls'
+      lastUrl `shouldBe` url
+      init ls' `shouldBe` filter (\(Line u _) -> u /= url) ls
 
-testCycleWithNegatives :: Test
-testCycleWithNegatives = TestCase $ do
-  let ls = [Line "a.com" (-5), Line "b.com" (-1), Line "c.com" (-3)]
-  (url, ls') <- cycle ls
-  assertBool "selected url is one of the input urls (all negative)"
-    (url `elem` map (\(Line u _) -> u) ls)
-  assertEqual "list length preserved (all negative)" (length ls) (length ls')
+    specify "deterministic with one line" $ do
+      let ls = [Line "a.com" 42]
+      results <- sequence (replicate 10 (cycle ls))
+      all (\(u, _) -> u == "a.com") results `shouldBe` True
+      all (\(_, ls') -> ls' == ls) results `shouldBe` True
 
-testCycleEmpty :: Test
-testCycleEmpty = TestCase $ do
-  (url, ls') <- cycle []
-  assertEqual "empty list returns empty URL" "" url
-  assertEqual "empty list returns empty list" [] ls'
+    specify "works with all negative scores" $ do
+      let ls = [Line "a.com" (-5), Line "b.com" (-1), Line "c.com" (-3)]
+      (url, ls') <- cycle ls
+      url `shouldSatisfy` (`elem` map (\(Line u _) -> u) ls)
+      length ls' `shouldBe` length ls
 
-testUp :: Test
-testUp = TestCase $ do
-  let ls = [Line "a.com" 1, Line "b.com" 5]
-      ls' = up ls
-  assertEqual "up increments last counter" [Line "a.com" 1, Line "b.com" 6] ls'
+    specify "empty list returns empty" $ do
+      (url, ls') <- cycle []
+      url `shouldBe` ""
+      ls' `shouldBe` []
 
-testUpEmpty :: Test
-testUpEmpty = TestCase $
-  assertEqual "up empty" [] (up [])
+  describe "up" $ do
+    specify "increments last counter" $
+      up [Line "a.com" 1, Line "b.com" 5] `shouldBe` [Line "a.com" 1, Line "b.com" 6]
 
-testDown :: Test
-testDown = TestCase $ do
-  let ls = [Line "a.com" 1, Line "b.com" 5]
-      ls' = down ls
-  assertEqual "down decrements last counter" [Line "a.com" 1, Line "b.com" 4] ls'
+    specify "empty" $
+      up [] `shouldBe` []
 
-testDownEmpty :: Test
-testDownEmpty = TestCase $
-  assertEqual "down empty" [] (down [])
+  describe "down" $ do
+    specify "decrements last counter" $
+      down [Line "a.com" 1, Line "b.com" 5] `shouldBe` [Line "a.com" 1, Line "b.com" 4]
 
-testParseFileWithErrors :: Test
-testParseFileWithErrors = TestCase $
-  assertBool "returns Left on parse error"
-    (case parseFile "a.com,1\nurl,abc\nb.com,2" of
-       Left _ -> True
-       Right _ -> False)
-
-tests :: Test
-tests = TestList [ TestLabel "testParseSimple" testParseSimple
-                 , TestLabel "testParseNegative" testParseNegative
-                 , TestLabel "testParseZero" testParseZero
-                 , TestLabel "testParseUrlWithCommas" testParseUrlWithCommas
-                 , TestLabel "testParseInvalid" testParseInvalid
-                 , TestLabel "testParseFileMultipleLines" testParseFileMultipleLines
-                 , TestLabel "testParseFileWithBlankLines" testParseFileWithBlankLines
-                 , TestLabel "testParseUrlNoComma" testParseUrlNoComma
-                 , TestLabel "testParseLineNoCommaInFile" testParseLineNoCommaInFile
-                 , TestLabel "testSerializeLine" testSerializeLine
-                 , TestLabel "testSerializeLineZero" testSerializeLineZero
-                 , TestLabel "testSerializeLineNegative" testSerializeLineNegative
-                 , TestLabel "testSerializeRoundtrip" testSerializeRoundtrip
-                 , TestLabel "testSerializeFile" testSerializeFile
-                 , TestLabel "testCycleSingle" testCycleSingle
-                 , TestLabel "testCycleSelectedMovedToBottom" testCycleSelectedMovedToBottom
-                 , TestLabel "testCycleDeterministicWithOneLine" testCycleDeterministicWithOneLine
-                 , TestLabel "testCycleWithNegatives" testCycleWithNegatives
-                 , TestLabel "testCycleEmpty" testCycleEmpty
-                 , TestLabel "testUp" testUp
-                 , TestLabel "testUpEmpty" testUpEmpty
-                 , TestLabel "testDown" testDown
-                 , TestLabel "testDownEmpty" testDownEmpty
-                 , TestLabel "testParseFileWithErrors" testParseFileWithErrors
-                 ]
+    specify "empty" $
+      down [] `shouldBe` []
 
 main :: IO ()
-main = do
-  results <- runTestTT tests
-  if failures results > 0 || errors results > 0
-    then exitFailure
-    else exitSuccess
+main = hspec spec
