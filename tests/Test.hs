@@ -118,7 +118,7 @@ spec = do
             Line "c" 0,
             Line "d" (-1),
             Line "e" 0]
-          p = [5, 5, 3, 1, 1]
+          p = [4, 4, 2, 0, 0]
       in profile l `shouldBe` p
 
 main :: IO ()

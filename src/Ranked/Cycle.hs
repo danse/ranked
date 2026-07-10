@@ -1,5 +1,10 @@
 {-# LANGUAGE OverloadedRecordDot #-}
-module Ranked.Cycle (cycle, up, down, profile) where
+module Ranked.Cycle
+  (cycle,
+   up,
+   down,
+   profile)
+where
 
 import Prelude hiding (cycle)
 import Ranked (Line(..))
@@ -16,7 +21,7 @@ cycle ls = do
       let raw = profile ls
           shift = if minimum raw < 0 then -(minimum raw) + 1 else 0
           weights = map (\n -> n + shift) raw
-          total  = sum weights
+          total = sum weights
       pick <- randomRIO (0, total - 1)
       let idx = select weights pick
           (Line url _) = ls !! idx
@@ -43,9 +48,11 @@ select (w:ws) n
   | otherwise = 1 + select ws (n - w)
 select []     _ = 0
 
--- | Gather rank profile taking into account line rank and index
+-- | Gather rank profile taking into account line rank and index. This
+-- adds a bias to favour less recently visited locations, so that
+-- `cycle` works according to its name
 profile :: [Line] -> [Int]
-profile = reverse . map g . zip [(1 :: Int)..] . reverse
+profile = reverse . map g . zip [0..] . reverse
   where
     g :: (Int, Line) -> Int
     g (i, l) =  l.rank + i
