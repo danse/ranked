@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedRecordDot #-}
-module Ranked.Cycle (cycle, up, down) where
+module Ranked.Cycle (cycle, up, down, profile) where
 
 import Prelude hiding (cycle)
 import Ranked (Line(..))
@@ -13,7 +13,7 @@ cycle ls = do
   if null ls
     then return ("", ls)
     else do
-      let raw = map (.rank) ls
+      let raw = profile ls
           shift = if minimum raw < 0 then -(minimum raw) + 1 else 0
           weights = map (\n -> n + shift) raw
           total  = sum weights
@@ -42,3 +42,10 @@ select (w:ws) n
   | n < w     = 0
   | otherwise = 1 + select ws (n - w)
 select []     _ = 0
+
+-- | Gather rank profile taking into account line rank and index
+profile :: [Line] -> [Integer]
+profile = reverse . map g . zip [1..] . reverse
+  where
+    g :: (Integer, Line) -> Integer
+    g (i, l) =  l.rank + i

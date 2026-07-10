@@ -1,8 +1,8 @@
 # ranked
 
 A CLI tool that parses a file of `URL,counter` pairs, picks one with
-probability proportional to its rank, serialises the cycled list back,
-and opens the selected URL in your browser.
+probability related to its rank, serialises the cycled list back, and
+opens the selected URL in your browser.
 
 The easiest way to start is with a file of URLs only (no counters yet).
 The tool treats lines without a comma as having counter 0.

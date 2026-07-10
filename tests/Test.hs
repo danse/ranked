@@ -4,7 +4,7 @@ import Data.Either (isLeft)
 import Prelude hiding (cycle)
 import Test.Hspec
 import Ranked (Line(..), parseLine, parseFile, serializeLine, serializeFile)
-import Ranked.Cycle (cycle, up, down)
+import Ranked.Cycle
 
 spec :: Spec
 spec = do
@@ -109,6 +109,17 @@ spec = do
 
     specify "empty" $
       down [] `shouldBe` []
+
+  describe "profile" $ do
+    specify "sums line ranks with line indexes" $
+      let l = [
+            Line "a" 0,
+            Line "b" 1,
+            Line "c" 0,
+            Line "d" (-1),
+            Line "e" 0]
+          p = [5, 5, 3, 1, 1]
+      in profile l `shouldBe` p
 
 main :: IO ()
 main = hspec spec
