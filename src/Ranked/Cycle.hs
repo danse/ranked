@@ -34,18 +34,18 @@ down :: [Line] -> [Line]
 down []   = []
 down ls   = init ls ++ [bump (+(-1)) (last ls)]
 
-bump :: (Integer -> Integer) -> Line -> Line
+bump :: (Int -> Int) -> Line -> Line
 bump f (Line url n) = Line url (f n)
 
-select :: [Integer] -> Integer -> Int
+select :: [Int] -> Int -> Int
 select (w:ws) n
   | n < w     = 0
   | otherwise = 1 + select ws (n - w)
 select []     _ = 0
 
 -- | Gather rank profile taking into account line rank and index
-profile :: [Line] -> [Integer]
-profile = reverse . map g . zip [1..] . reverse
+profile :: [Line] -> [Int]
+profile = reverse . map g . zip [(1 :: Int)..] . reverse
   where
-    g :: (Integer, Line) -> Integer
+    g :: (Int, Line) -> Int
     g (i, l) =  l.rank + i

@@ -14,11 +14,11 @@ import Data.Char (isDigit, isSpace)
 
 data Line = Line {
   location :: String,
-  rank :: Integer
+  rank :: Int
   } deriving (Eq, Show)
 
 -- Parse the counter part: optional '-', then digits
-counterP :: ReadP Integer
+counterP :: ReadP Int
 counterP = do
   sign <- option id (negate <$ char '-')
   n    <- munch1 isDigit
