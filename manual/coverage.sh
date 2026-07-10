@@ -3,18 +3,19 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-cabal test ranked-test 2>&1
+cabal configure --enable-coverage 2>&1
+cabal build 2>&1
+cabal test 2>&1
 
-tixfile="$PWD/ranked-test.tix"
-if [ ! -f "$tixfile" ]; then
-  tixfile=$(find . -name '*.tix' 2>/dev/null | head -1)
+tixfile=$(find dist-newstyle -name '*.tix' 2>/dev/null | head -1)
+if [ -z "$tixfile" ]; then
+  tixfile=$(find . -maxdepth 1 -name '*.tix' 2>/dev/null | head -1)
 fi
 if [ -z "$tixfile" ]; then
   echo "No .tix file found"
   exit 1
 fi
 
-export HPCDIR="$PWD/dist-newstyle/build/*/ghc-*/ranked-*/hpc/.hpc"
 echo "=== Coverage report ==="
 hpc report "$tixfile"
 

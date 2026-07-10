@@ -53,12 +53,8 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
-common coverage
-    ghc-options: -fhpc
-
 library
     import:           warnings
-    import:           coverage
 
     exposed-modules:  Ranked
                   Ranked.Cycle
@@ -86,7 +82,6 @@ executable ranked
 
 test-suite ranked-test
     import:           warnings
-    import:           coverage
 
     type:             exitcode-stdio-1.0
 
