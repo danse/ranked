@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedRecordDot #-}
 module Ranked.Cycle (cycle, up, down) where
 
 import Prelude hiding (cycle)
@@ -12,7 +13,7 @@ cycle ls = do
   if null ls
     then return ("", ls)
     else do
-      let raw = map (\(Line _ n) -> n) ls
+      let raw = map (.rank) ls
           shift = if minimum raw < 0 then -(minimum raw) + 1 else 0
           weights = map (\n -> n + shift) raw
           total  = sum weights

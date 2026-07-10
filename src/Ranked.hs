@@ -1,9 +1,21 @@
-module Ranked (Line(..), parseLine, parseFile, serializeLine, serializeFile) where
+{-# LANGUAGE NoFieldSelectors #-}
+
+module Ranked
+  (Line(..),
+   parseLine,
+   parseFile,
+   serializeLine,
+   serializeFile
+  )
+where
 
 import Text.ParserCombinators.ReadP
 import Data.Char (isDigit, isSpace)
 
-data Line = Line String Integer deriving (Eq, Show)
+data Line = Line {
+  location :: String,
+  rank :: Integer
+  } deriving (Eq, Show)
 
 -- Parse the counter part: optional '-', then digits
 counterP :: ReadP Integer
